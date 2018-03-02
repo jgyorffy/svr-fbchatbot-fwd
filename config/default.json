@@ -1,0 +1,9 @@
+{
+    "appSecret": "dd646a28be50719466128ef96969aac1",
+    "pageAccessToken": "EAAYOkbiZCwnkBAAwvDIq49tXmbwefHwq5w9Obszcsf2sdXJLVB7ZCPNg3j2Uteb2ZBOOFVucnZByclOtUZBWX14Qr0aXcRjkcgJs2lus8ConyKT0u31CTuT1uQU6jjXQ1C0dMhJ4ZAHtV11kpAmxeuncbVXy6Asnz8Np006PACkYG40mm5ayrLEtOtLNXhDiMZD",
+    "validationToken": "TOKEN",
+    "serverURL": "https://datapark.ddns.net:8443",
+    "dfProjectId" : "date-72100",
+    "dfAccessToken" : "f0f89376b69a47d199645f70a0802a0a",
+    "dfDevAccessToken" : "b41b2276ca2747e4a7035c0c1d748758"
+}
