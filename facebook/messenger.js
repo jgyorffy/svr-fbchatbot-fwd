@@ -1,5 +1,7 @@
 'use strict';
 
+let onMessageFnc = null;
+
 const
     bodyParser = require('body-parser'),
     config = require('config'),
@@ -8,7 +10,10 @@ const
     https = require('https'),
     request = require('request'),
     fs = require("fs"),
-    objectIter = require('../utils/common.js');
+    objectIter = require('../utils/common'),
+    messagebus = require('../message-bus/messaging')((msg) => {
+        onMessageFnc(msg);
+    });
 /*
  * Be sure to setup your config values before running this code. You can
  * set them using environment variables or modifying the config file in /config.
@@ -42,6 +47,10 @@ if (!(APP_SECRET && VALIDATION_TOKEN && PAGE_ACCESS_TOKEN && SERVER_URL)) {
 }
 
 module.exports.setupFBMessenger = (app) => {
+
+    onMessageFnc = (msg) => {
+        console.log("got message: %s", msg)
+    }
 
     app.use(bodyParser.json({ verify: verifyRequestSignature }));
 

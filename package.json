@@ -1,7 +1,7 @@
 {
-  "name": "messenger-get-started",
+  "name": "svr-fbchatbot-fwd",
   "version": "1.0.0",
-  "description": "Get started example for Messenger Platform",
+  "description": "Interface to Messenger Platform",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
@@ -10,19 +10,23 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/fbsamples/messenger-platform-samples.git"
+    "url": "git@github.com:jgyorffy/svr-fbchatbot-fwd.git"
   },
-  "author": "Facebook",
+  "author": "DATAPARK",
   "license": "ISC",
   "dependencies": {
     "@google-cloud/storage": "^1.6.0",
+    "amqplib": "^0.5.2",
     "body-parser": "^1.15.0",
+    "bson-ext": "^2.0.0",
     "config": "^1.20.4",
     "dialogflow": "^0.1.0",
     "ejs": "^2.4.2",
     "express": "^4.13.4",
     "log4js": "^2.5.3",
     "log4js-extend": "^0.2.1",
+    "mongodb": "^3.0.4",
+    "mongoose": "^5.0.9",
     "request": "^2.72.0"
   }
 }

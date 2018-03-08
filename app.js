@@ -10,29 +10,32 @@ const
   chatbot = require("./chatbot/dialogflow");
 const logger = require('./utils/logger')(__dirname, "app");
 
-
-
-
 const app = express();
-app.set('view engine', 'ejs');
 app.use(express.static('public'));
 fbMsgr.setupFBMessenger(app);
 
-
 const options = {
-  key: fs.readFileSync("keys/datapark_ddns_net.key.pem"),
-  cert: fs.readFileSync("keys/datapark_ddns_net.pem"),
-  ca: [fs.readFileSync("keys/datapark_ddns_net.ca-bundle")]
+  key: fs.readFileSync(config.get('restSSLKey')),
+  cert: fs.readFileSync(config.get('restSSLCert')),
+  ca: [fs.readFileSync(config.get('restSSLCA'))]
 };
 
-https.createServer(options, app).listen(8443);
-logger.debug("fbChatbot listening on port 8443");
+const server = https.createServer(options, app).listen(config.get('servicePort'), "0.0.0.0", () => {
+  logger.info("svr-fbchatbot-fwd listening 0.0.0.0:" + config.get('servicePort'));
+});
+server.maxConnections = config.get('maxIncomingCnx');
+server.on('error', (err) => {
+  logger.error("Server error", err)
+});
 
-chatbot.call("token", 'en-US', 'Do you have a slot tomorrow afternoon?').then(response => {
+
+
+/*chatbot.call("token", 'en-US', 'Do you have a slot tomorrow afternoon?').then(response => {
   console.log('Got: ' + response);
   logger.debug('Got: ' + response);
 }).catch(err => {
   console.error('ERROR:', err);
 });
+*/
 
 //sendGenericMessage("1729446440446938");
