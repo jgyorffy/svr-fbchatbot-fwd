@@ -18,8 +18,8 @@ module.exports = async (fbSvrOnMessage) => {
 
     const configQueue = await rabbitmqConfig;
 
-    loadQueue();
-    
+    await loadQueue();
+
     configQueue.listen((msg) => {
         loadQueue();
         logger.info("Config queue notified to load new queues");
@@ -41,26 +41,26 @@ module.exports = async (fbSvrOnMessage) => {
                 busIdToConnectedBusMap[configItem.chatbotBusId] = bus;
                 if (configItem.queueName) {
                     bus.listen((msg) => {
-                        fbSvrOnMessage(msg);
+                        fbSvrOnMessage(JSON.parse(msg));
                     });
                 }
             }
         }
     }
 
-    function loadQueue() {
-        database.chatbotBusConfig.findAll((list) => {
-            if (list) {
-                list.forEach(async configItem => {
-                    await load(configItem);
-                });
-            }
-        })
+    async function loadQueue() {
+        const list = await database.chatbotBusConfig.findAll();
+        for (let configItem of list) {
+            await load(configItem);
+        }
     }
 
     return (message) => {
-        if (!busIdToConnectedBusMap[message.chatbotBusId]) {
+        if (busIdToConnectedBusMap[message.chatbotBusId]) {
             busIdToConnectedBusMap[message.chatbotBusId].send(message);
+            if (logger.isDebugEnabled()) {
+                logger.debug("Sent fb msg to queue: \n" + JSON.stringify(message));
+            }
         }
     }
 };

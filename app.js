@@ -6,7 +6,7 @@ const
   express = require('express'),
   https = require('https'),
   fs = require("fs"),
-  fbMsgr = require("./facebook/messenger"),
+  fbMsgr = require("./facebook/fbmessenger"),
   chatbot = require("./chatbot/dialogflow");
 const logger = require('./utils/logger')(__dirname, "app");
 

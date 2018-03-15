@@ -6,7 +6,7 @@ const Schema = mongoose.Schema;
 
 const chatbotBusConfig = new Schema({
     chatbotBusId: { type: String, required: [true, 'A chatbot bus Id is required'], index: { unique: true } },
-    exchange: { type: String,  required: [true, 'A chatbot exchange is required'] },
+    exchange: { type: String, required: [true, 'A chatbot exchange is required'] },
     queueName: { type: String },
     routingKey: { type: String }
 }, { timestamps: { createdAt: 'created_at' }, strict: true, _id: false });
@@ -29,29 +29,30 @@ module.exports = (cnx) => {
                 }
             });
         },
-        findByChatbotBusId: (chatbotBusId, cb) => {
+        findByChatbotBusId: (chatbotBusId) => {
             const query = ChatbotBusConfig.findOne({ chatbotBusId });
-            find(query, cb, "chatbotBusId")
+            return new Promise((resolve, reject) => {
+                query.exec((err, obj) => {
+                    if (err) {
+                        logger.error("Error with find by " + name, err);
+                        reject(Error(err));
+                    } else {
+                        resolve(obj);
+                    }
+                });
+            });
         },
-        findAll: (cb) => {
-            ChatbotBusConfig.find({}, (err, groups) => {
-                if (err) {
-                    logger.error("Error with find all", err);
-                    cb(null);
-                } else {
-                    cb(groups);
-                }
+        findAll: () => {
+            return new Promise((resolve, reject) => {
+                ChatbotBusConfig.find({}, (err, groups) => {
+                    if (err) {
+                        logger.error("Error with find all", err);
+                        reject(Error(err));
+                    } else {
+                        resolve(groups);
+                    }
+                });
             });
         }
-    }
-    function find(query, cb, name) {
-        query.exec((err, obj) => {
-            if (err) {
-                logger.error("Error with find by " + name, err);
-                cb(null);
-            } else {
-                cb(obj);
-            }
-        });
     }
 }

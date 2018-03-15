@@ -71,7 +71,7 @@ module.exports = async (config) => {
                 return;
             }
             try {
-                channel.publish(exchange, routingKey, Buffer.from(msg), {
+                channel.publish(exchange, routingKey, Buffer.from(JSON.stringify(msg)), {
                     contentType: 'application/json',
                 });
             } catch (err) {

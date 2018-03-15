@@ -1,7 +1,6 @@
 {
-    "appSecret": "dd646a28be50719466128ef96969aac1",
-    "pageAccessToken": "EAAYOkbiZCwnkBAAwvDIq49tXmbwefHwq5w9Obszcsf2sdXJLVB7ZCPNg3j2Uteb2ZBOOFVucnZByclOtUZBWX14Qr0aXcRjkcgJs2lus8ConyKT0u31CTuT1uQU6jjXQ1C0dMhJ4ZAHtV11kpAmxeuncbVXy6Asnz8Np006PACkYG40mm5ayrLEtOtLNXhDiMZD",
-    "validationToken": "TOKEN",
+    "appSecret": "6140495b9add8466ad1e802b8f0f467f",
+    "pageAccessToken": "EAABcynYQzfQBAAX6Y53mOuWgIGGnb0v02XjMjCCq827eRQ1G7lYghLPCgOD5MhZAOjSSfli22GabZCh4j5YTOqKZAgyO1MTiQ6b0thB9XgQFrPRQXFbgt0LjeXmXWYTDqZCvUt3takQa0EJWmMe5lZC8XSZCLV2NvOlO8YhzJwGZACFUpDF9XIdtDsF7FcnTScZD",
     "serverURL": "https://datapark.ddns.net:8443",
     "dfProjectId": "date-72100",
     "dfAccessToken": "f0f89376b69a47d199645f70a0802a0a",
@@ -21,5 +20,8 @@
     "rabbitMQChatbotExchange": "xch_chatbot",
     "mongoDBUserName": "system",
     "mongoDBPassword": "Sat&0873??",
-    "mongoDBConfigDBName": "chatbot"
+    "mongoDBConfigDBName": "chatbot",
+    "facebookStdMessageAPIURL": "https://graph.facebook.com/v2.6/me/messages",
+    "facebookPersonInfoURL": "https://graph.facebook.com/v2.6/",
+    "facebookMessengerProfile" : "https://graph.facebook.com/v2.6/me/messenger_profile"
 }
