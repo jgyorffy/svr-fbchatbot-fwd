@@ -7,8 +7,7 @@ const
   https = require('https'),
   fs = require("fs"),
   fbMsgr = require("./facebook/fbmessenger"),
-  chatbot = require("./chatbot/dialogflow");
-const logger = require('./utils/logger')(__dirname, "app");
+  logger = require('./utils/logger')(__dirname, "app");
 
 const app = express();
 app.use(express.static('public'));
@@ -27,15 +26,3 @@ server.maxConnections = config.get('maxIncomingCnx');
 server.on('error', (err) => {
   logger.error("Server error", err)
 });
-
-
-
-/*chatbot.call("token", 'en-US', 'Do you have a slot tomorrow afternoon?').then(response => {
-  console.log('Got: ' + response);
-  logger.debug('Got: ' + response);
-}).catch(err => {
-  console.error('ERROR:', err);
-});
-*/
-
-//sendGenericMessage("1729446440446938");
