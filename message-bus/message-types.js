@@ -1,8 +1,10 @@
 'use strict';
 
+const uuidv1 = require('uuid/v1');
+
 module.exports.msgTypes = Object.freeze({
-    FB_MSG_NEW: Symbol.for('fb_new_msg'),
-    FB_MSG_REPLY_PLAIN_TXT: Symbol.for('fb_reply_plain_text'),
+    FB_MSG_NEW: Symbol.for('fb_msg_new'),
+    FB_MSG_REPLY_PLAIN_TXT: Symbol.for('fb_msg_reply_plain_text'),
     FB_MSG_CONFIRM: Symbol.for('fb_msg_confirmation'),
     FB_MSG_POSTBACK: Symbol.for('fb_msg_postback'),
     FB_MSG_READ: Symbol.for('fb_msg_read'),
@@ -12,9 +14,18 @@ module.exports.msgTypes = Object.freeze({
     FB_MSG_GENERIC: Symbol.for('fb_msg_generic'),
     FB_MSG_QUICK_REPLY: Symbol.for('fb_msg_quick_reply'),
     FB_MSG_ADD_PROFILE: Symbol.for('fb_msg_add_profile'),
-    FB_MSG_DEL_PROFILE: Symbol.for('fb_msg_del_profile')
+    FB_MSG_DEL_PROFILE: Symbol.for('fb_msg_del_profile'),
+    FB_MSG_STATUS_RSP: Symbol.for('fb_msg_status_response')
 });
 
+module.exports.status = Object.freeze({
+    OK: 0,
+    NOT_VALID_APIUUID: 1,   //not a valid api
+    UNKNOWN_MSG_TYPE: 2,     //message type was not in the above list
+    DELETE_PROFILE_FAILED: 3,
+    ADDING_PROFILE_FAILED: 4,
+    SEND_TO_MSGR_API_FAILED: 5
+});
 
 module.exports.fbNewMsg =
     (chatbotBusId,
@@ -40,7 +51,8 @@ module.exports.fbNewMsg =
         }
 
         return {
-            msgType: module.exports.types.FB_NEW_MSG,
+            msgId: uuidv1(),
+            msgType: Symbol.keyFor(module.exports.msgTypes.FB_MSG_NEW),
             chatbotBusId,
             chatbotAPIUUId,
             pageId,
@@ -60,7 +72,7 @@ module.exports.fbNewMsg =
 
 module.exports.fbDelConfirmation =
     (chatbotBusId,
-        chatbotAPIUUID,
+        chatbotAPIUUId,
         pageId,
         senderId,
         recipientId,
@@ -74,7 +86,8 @@ module.exports.fbDelConfirmation =
         }
 
         return {
-            msgType: module.exports.types.FB_MSG_CONFIRM,
+            msgId: uuidv1(),
+            msgType: Symbol.keyFor(module.exports.msgTypes.FB_MSG_CONFIRM),
             chatbotBusId,
             chatbotAPIUUId,
             pageId,
@@ -89,7 +102,7 @@ module.exports.fbDelConfirmation =
 
 module.exports.fbPostback =
     (chatbotBusId,
-        chatbotAPIUUID,
+        chatbotAPIUUId,
         pageId,
         senderId,
         recipientId,
@@ -101,7 +114,8 @@ module.exports.fbPostback =
         }
 
         return {
-            msgType: module.exports.types.FB_MSG_POSTBACK,
+            msgId: uuidv1(),
+            msgType: Symbol.keyFor(module.exports.msgTypes.FB_MSG_POSTBACK),
             chatbotBusId,
             chatbotAPIUUId,
             pageId,
@@ -115,7 +129,7 @@ module.exports.fbPostback =
 
 module.exports.fbMessageRead =
     (chatbotBusId,
-        chatbotAPIUUID,
+        chatbotAPIUUId,
         pageId,
         senderId,
         recipientId,
@@ -128,9 +142,10 @@ module.exports.fbMessageRead =
         }
 
         return {
-            msgType: module.exports.types.FB_MSG_READ,
+            msgId: uuidv1(),
+            msgType: Symbol.keyFor(module.exports.msgTypes.FB_MSG_READ),
             chatbotBusId,
-            chatbotAPIUUID,
+            chatbotAPIUUId,
             pageId,
             senderId,
             recipientId,
@@ -142,7 +157,7 @@ module.exports.fbMessageRead =
 
 module.exports.fbMessageOptIn =
     (chatbotBusId,
-        chatbotAPIUUID,
+        chatbotAPIUUId,
         pageId,
         senderId,
         recipientId,
@@ -154,9 +169,10 @@ module.exports.fbMessageOptIn =
         }
 
         return {
-            msgType: module.exports.types.FB_MSG_OPTIN,
+            msgId: uuidv1(),
+            msgType: Symbol.keyFor(module.exports.msgTypes.FB_MSG_OPTIN),
             chatbotBusId,
-            chatbotAPIUUID,
+            chatbotAPIUUId,
             pageId,
             senderId,
             recipientId,
@@ -164,3 +180,19 @@ module.exports.fbMessageOptIn =
             optinRef
         }
     };
+
+module.exports.fbMessageStatusReport = (msgId, chatbotBusId, description="OK", status = module.exports.status.OK) => {
+
+    if (!(msgId && chatbotBusId)) {
+        throw new Error("Empty required values passed");
+    }
+
+    return {
+        msgId,
+        chatbotBusId,
+        status,
+        description,
+        msgType: Symbol.keyFor(module.exports.msgTypes.FB_MSG_STATUS_RSP),
+        timeOfEvent: new Date().getTime()
+    }
+};

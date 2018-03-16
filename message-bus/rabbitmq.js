@@ -91,7 +91,7 @@ module.exports = async (config) => {
             }
             channel.consume(queueName, (msg) => {
                 if (logger.isDebugEnabled()) {
-                    logger.debug("Received ", msg.content.toString());
+                    logger.debug(`RabbitMQ received \n ${msg.content.toString()}`);
                 }
                 cb(msg.content.toString());
             }, { noAck: true });

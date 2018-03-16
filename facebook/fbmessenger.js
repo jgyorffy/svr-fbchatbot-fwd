@@ -20,18 +20,18 @@ const
     fbDelConfirmation = require('../message-bus/message-types').fbDelConfirmation,
     fbPostback = require('../message-bus/message-types').fbPostback,
     fbMessageRead = require('../message-bus/message-types').fbMessageRead,
-    fbMessageOptIn = require('../message-bus/message-types').fbMessageOptIn;
-
+    fbMessageOptIn = require('../message-bus/message-types').fbMessageOptIn,
+    fbMessageStatusReport = require('../message-bus/message-types').fbMessageStatusReport,
+    STATUS = require('../message-bus/message-types').status;
 
 const SERVER_URL = config.get('serverURL');
 const FACEBOOK_STD_MSG_API_URL = config.get('facebookStdMessageAPIURL');
 const FACEBOOK_PERSON_INFO_API_URL = config.get('facebookPersonInfoURL');
 const FACEBOOK_MESSENGER_PROFILE_URL = config.get('facebookMessengerProfile');
 
-
 module.exports.setupFBMessenger = async (app) => {
     const messagebusSender = await messagebus;
-    //  database.companyAPI.updateByCompanyID({companyId:'1', chatbotAPIUUID:'4LSN2MYVWVUM2QHOX73Q', chatbotBusId:'2', pageAccessToken:'EAABcynYQzfQBAAX6Y53mOuWgIGGnb0v02XjMjCCq827eRQ1G7lYghLPCgOD5MhZAOjSSfli22GabZCh4j5YTOqKZAgyO1MTiQ6b0thB9XgQFrPRQXFbgt0LjeXmXWYTDqZCvUt3takQa0EJWmMe5lZC8XSZCLV2NvOlO8YhzJwGZACFUpDF9XIdtDsF7FcnTScZD', appSecret:'6140495b9add8466ad1e802b8f0f467f'});
+    //  database.companyAPI.updateByCompanyID({companyId:'1', chatbotAPIUUId:'4LSN2MYVWVUM2QHOX73Q', chatbotBusId:'2', pageAccessToken:'EAABcynYQzfQBAAX6Y53mOuWgIGGnb0v02XjMjCCq827eRQ1G7lYghLPCgOD5MhZAOjSSfli22GabZCh4j5YTOqKZAgyO1MTiQ6b0thB9XgQFrPRQXFbgt0LjeXmXWYTDqZCvUt3takQa0EJWmMe5lZC8XSZCLV2NvOlO8YhzJwGZACFUpDF9XIdtDsF7FcnTScZD', appSecret:'6140495b9add8466ad1e802b8f0f467f'});
 
     /*
         These are all the incoming messages that can be sent to Facebook Messenger.
@@ -46,34 +46,60 @@ module.exports.setupFBMessenger = async (app) => {
             return;
         }
 
-        if (!msg.chatbotAPIUUID) {
+        if (!msg.chatbotAPIUUId) {
             logger.error("Message had an empty API UUId");
             return;
         }
 
-        const apiConfig = await database.companyAPI.findByAPIUUId(msg.chatbotAPIUUID);
-        if (apiConfig) {
-            sendTypingOff(msg.senderID, apiConfig.pageAccessToken)
-        } else {
-            logger.error("Could not find chatbot API UUId", msg.chatbotAPIUUID);
+        if (!msg.msgId) {
+            logger.error("Message had an empty message Id");
+            return;
         }
 
-        if (apiConfig && msg.msgType && msg.msgType === Symbol.keyFor(MSG_TYPES.FB_MSG_REPLY_PLAIN_TXT)) {
-            sendTextMessage(msg.senderID, apiConfig.pageAccessToken, msg.messageText, msg.sessionInfo);
-        } else if (apiConfig && msg.msgType && msg.msgType === Symbol.keyFor(MSG_TYPES.FB_MSG_MEDIA)) {
-            sendMediaMessage(msg.senderID, apiConfig.pageAccessToken, msg.type, msg.assetPath);
-        } else if (apiConfig && msg.msgType && msg.msgType === Symbol.keyFor(MSG_TYPES.FB_MSG_BUTTON)) {
-            sendButtonMessage(msg.senderID, apiConfig.pageAccessToken, msg.headerText, msg.buttons)
-        } else if (apiConfig && msg.msgType && msg.msgType === Symbol.keyFor(MSG_TYPES.FB_MSG_GENERIC)) {
-            sendGenericMessage(msg.senderID, apiConfig.pageAccessToken, msg.elements);
-        } else if (apiConfig && msg.msgType && msg.msgType === Symbol.keyFor(MSG_TYPES.FB_MSG_QUICK_REPLY)) {
-            sendQuickReply(msg.senderID, apiConfig.pageAccessToken, msg.question, msg.replies);
-        } else if (apiConfig && msg.msgType && msg.msgType === Symbol.keyFor(MSG_TYPES.FB_MSG_ADD_PROFILE)) {
-            callAddToMessengerProfileAPI(msg.profile, apiConfig.pageAccessToken);
-        } else if (apiConfig && msg.msgType && msg.msgType === Symbol.keyFor(MSG_TYPES.FB_MSG_DEL_PROFILE)) {
-            callDeleteMessengerProfileAPI(msg.profile, apiConfig.pageAccessToken);
-        } else {
-            logger.error("Unknown message received", msg);
+        const apiConfig = await database.companyAPI.findByAPIUUId(msg.chatbotAPIUUId);
+        if (!apiConfig) {
+            logger.error("Could not find chatbot API UUId: ", msg.chatbotAPIUUId);
+            messagebusSender(fbMessageStatusReport(
+                msg.msgId,
+                apiConfig.chatbotBusId,
+                "Could not find chatbot API UUId: " + msg.chatbotAPIUUId,
+                STATUS.NOT_VALID_APIUUID
+            ));
+            return;
+        }
+        try {
+            //sendTypingOff(msg.senderId, apiConfig.pageAccessToken);
+            if (msg.msgType === Symbol.keyFor(MSG_TYPES.FB_MSG_REPLY_PLAIN_TXT)) {
+                sendTextMessage(msg.msgId, apiConfig.chatbotBusId, msg.senderId, apiConfig.pageAccessToken, msg.messageText, msg.msgId);
+            } else if (msg.msgType === Symbol.keyFor(MSG_TYPES.FB_MSG_MEDIA)) {
+                sendMediaMessage(msg.msgId, apiConfig.chatbotBusId, msg.senderId, apiConfig.pageAccessToken, msg.type, msg.assetPath);
+            } else if (msg.msgType === Symbol.keyFor(MSG_TYPES.FB_MSG_BUTTON)) {
+                sendButtonMessage(msg.msgId, apiConfig.chatbotBusId, msg.senderId, apiConfig.pageAccessToken, msg.headerText, msg.buttons)
+            } else if (msg.msgType === Symbol.keyFor(MSG_TYPES.FB_MSG_GENERIC)) {
+                sendGenericMessage(msg.msgId, apiConfig.chatbotBusId, msg.senderId, apiConfig.pageAccessToken, msg.elements);
+            } else if (msg.msgType === Symbol.keyFor(MSG_TYPES.FB_MSG_QUICK_REPLY)) {
+                sendQuickReply(msg.msgId, apiConfig.chatbotBusId, msg.senderId, apiConfig.pageAccessToken, msg.question, msg.replies);
+            } else if (msg.msgType === Symbol.keyFor(MSG_TYPES.FB_MSG_ADD_PROFILE)) {
+                callAddToMessengerProfileAPI(msg.msgId, apiConfig.chatbotBusId, msg.profile, apiConfig.pageAccessToken);
+            } else if (msg.msgType === Symbol.keyFor(MSG_TYPES.FB_MSG_DEL_PROFILE)) {
+                callDeleteMessengerProfileAPI(msg.msgId, apiConfig.chatbotBusId, msg.profile, apiConfig.pageAccessToken);
+            } else {
+                logger.error(`Unknown message type received:\n ${JSON.stringify(msg)}`);
+                messagebusSender(fbMessageStatusReport(
+                    msg.msgId,
+                    apiConfig.chatbotBusId,
+                    "Unknown message type received: " + msg.msgType,
+                    STATUS.UNKNOWN_MSG_TYPE
+                ));
+            }
+        } catch (Err) {
+            logger.error(`Unknown message error received:\n ${JSON.stringify(Err)}`);
+            messagebusSender(fbMessageStatusReport(
+                msg.msgId,
+                apiConfig.chatbotBusId,
+                "Unknown message error",
+                STATUS.UNKNOWN_MSG_TYPE
+            ));
         }
 
     }
@@ -113,7 +139,7 @@ module.exports.setupFBMessenger = async (app) => {
         try {
             const data = req.body;
             if (logger.isDebugEnabled()) {
-                logger.debug(`Received message from facebook messanger\n ${JSON.stringify(req)}`);
+                logger.debug(`Received message from facebook messanger\n ${JSON.stringify(data)}`);
             }
 
             const apiConfig = await database.companyAPI.findByAPIUUId(req.params.apiuuid);
@@ -193,7 +219,7 @@ module.exports.setupFBMessenger = async (app) => {
      */
     async function verifyRequestSignature(req, res, buf) {
         const signature = req.headers["x-hub-signature"];
-        const chatbotAPIUUID = req.originalUrl.split('/')[1];
+        const chatbotAPIUUId = req.originalUrl.split('/')[1];
 
         if (!signature) {
             // For testing, let's log an error. In production, you should throw an
@@ -203,7 +229,7 @@ module.exports.setupFBMessenger = async (app) => {
             const elements = signature.split('=');
             const method = elements[0];
             const signatureHash = elements[1];
-            const apiConfig = await database.companyAPI.findByAPIUUId(chatbotAPIUUID);
+            const apiConfig = await database.companyAPI.findByAPIUUId(chatbotAPIUUId);
             if (apiConfig) {
                 const expectedHash = crypto.createHmac('sha1', apiConfig.appSecret)
                     .update(buf)
@@ -247,17 +273,13 @@ module.exports.setupFBMessenger = async (app) => {
 
         messagebusSender(fbMessageOptIn(
             apiConfig.chatbotBusId,
-            apiConfig.chatbotAPIUUID,
+            apiConfig.chatbotAPIUUId,
             pageId,
             senderId,
             recipientId,
             timeOfEvent,
             optinRef
         ));
-
-        // When an authentication is received, we'll send a message back to the sender
-        // to let them know it was successful.
-        //sendTextMessage(senderID, "Authentication successful");
     }
 
     /*
@@ -303,7 +325,7 @@ module.exports.setupFBMessenger = async (app) => {
         const person = await callGetPersonInfo(senderId, apiConfig.pageAccessToken);
         messagebusSender(fbNewMsg(
             apiConfig.chatbotBusId,
-            apiConfig.chatbotAPIUUID,
+            apiConfig.chatbotAPIUUId,
             pageID,
             senderId,
             recipientId,
@@ -344,7 +366,7 @@ module.exports.setupFBMessenger = async (app) => {
 
                 messagebusSender(fbDelConfirmation(
                     apiConfig.chatbotBusId,
-                    apiConfig.chatbotAPIUUID,
+                    apiConfig.chatbotAPIUUId,
                     pageId,
                     senderId,
                     recipientId,
@@ -379,7 +401,7 @@ module.exports.setupFBMessenger = async (app) => {
 
         messagebusSender(fbPostback(
             apiConfig.chatbotBusId,
-            apiConfig.chatbotAPIUUID,
+            apiConfig.chatbotAPIUUId,
             pageId,
             senderId,
             recipientId,
@@ -411,7 +433,7 @@ module.exports.setupFBMessenger = async (app) => {
 
         messagebusSender(fbMessageRead(
             apiConfig.chatbotBusId,
-            apiConfig.chatbotAPIUUID,
+            apiConfig.chatbotAPIUUId,
             pageId,
             senderId,
             recipientId,
@@ -425,7 +447,7 @@ module.exports.setupFBMessenger = async (app) => {
      * Send an media to chat. Types are: image, audio, video, and file
      *
      */
-    function sendMediaMessage(recipientId, pageAccessToken, type, assetPath) {
+    function sendMediaMessage(msgId, recipientId, pageAccessToken, type, assetPath) {
         const messageData = {
             recipient: {
                 id: recipientId
@@ -440,14 +462,14 @@ module.exports.setupFBMessenger = async (app) => {
             }
         };
 
-        callSendToMessengerAPI(messageData, pageAccessToken);
+        callSendToMessengerAPI(msgId, messageData, pageAccessToken);
     }
 
     /*
      * Send a text message using the Send API.
      *
      */
-    function sendTextMessage(recipientId, pageAccessToken, messageText, sessionInfo) {
+    function sendTextMessage(msgId, chatbotBusId, recipientId, pageAccessToken, messageText, sessionInfo) {
         const messageData = {
             recipient: {
                 id: recipientId
@@ -458,7 +480,7 @@ module.exports.setupFBMessenger = async (app) => {
             }
         };
 
-        callSendToMessengerAPI(messageData, pageAccessToken);
+        callSendToMessengerAPI(msgId, chatbotBusId, messageData, pageAccessToken);
     }
 
     /*
@@ -479,7 +501,7 @@ module.exports.setupFBMessenger = async (app) => {
                         }]
      *
      */
-    function sendButtonMessage(recipientId, pageAccessToken, headerText, buttons) {
+    function sendButtonMessage(msgId, chatbotBusId, recipientId, pageAccessToken, headerText, buttons) {
         const messageData = {
             recipient: {
                 id: recipientId
@@ -496,7 +518,7 @@ module.exports.setupFBMessenger = async (app) => {
             }
         };
 
-        callSendToMessengerAPI(messageData, pageAccessToken);
+        callSendToMessengerAPI(msgId, chatbotBusId, messageData, pageAccessToken);
     }
 
     /*
@@ -531,7 +553,7 @@ module.exports.setupFBMessenger = async (app) => {
                             }]
                         }]
      */
-    function sendGenericMessage(recipientId, pageAccessToken, elements) {
+    function sendGenericMessage(msgId, chatbotBusId, recipientId, pageAccessToken, elements) {
         const messageData = {
             recipient: {
                 id: recipientId
@@ -547,7 +569,7 @@ module.exports.setupFBMessenger = async (app) => {
             }
         };
 
-        callSendToMessengerAPI(messageData, pageAccessToken);
+        callSendToMessengerAPI(msgId, chatbotBusId, messageData, pageAccessToken);
     }
 
     /*
@@ -558,7 +580,7 @@ module.exports.setupFBMessenger = async (app) => {
                         "payload": "DEVELOPER_DEFINED_PAYLOAD_FOR_PICKING_ACTION"
                     }]
      */
-    function sendQuickReply(recipientId, pageAccessToken, question, replies) {
+    function sendQuickReply(msgId, chatbotBusId, recipientId, pageAccessToken, question, replies) {
         const messageData = {
             recipient: {
                 id: recipientId
@@ -569,7 +591,7 @@ module.exports.setupFBMessenger = async (app) => {
             }
         };
 
-        callSendToMessengerAPI(messageData, pageAccessToken);
+        callSendToMessengerAPI(msgId, chatbotBusId, messageData, pageAccessToken);
     }
 
     /*
@@ -586,7 +608,7 @@ module.exports.setupFBMessenger = async (app) => {
             sender_action: "mark_seen"
         };
 
-        callSendToMessengerAPI(messageData, pageAccessToken);
+        callSendToMessengerAPI(0, 0, messageData, pageAccessToken);
     }
 
     /*
@@ -603,7 +625,7 @@ module.exports.setupFBMessenger = async (app) => {
             sender_action: "typing_on"
         };
 
-        callSendToMessengerAPI(messageData, pageAccessToken);
+        callSendToMessengerAPI(0, 0, messageData, pageAccessToken);
     }
 
     /*
@@ -620,7 +642,7 @@ module.exports.setupFBMessenger = async (app) => {
             sender_action: "typing_off"
         };
 
-        callSendToMessengerAPI(messageData, pageAccessToken);
+        callSendToMessengerAPI(0, 0, messageData, pageAccessToken);
     }
 
     /*
@@ -628,7 +650,7 @@ module.exports.setupFBMessenger = async (app) => {
      * get the message id in a response
      *
      */
-    function callSendToMessengerAPI(messageData, pageAccessToken) {
+    function callSendToMessengerAPI(msgId, chatbotBusId, messageData, pageAccessToken) {
         request({
             uri: FACEBOOK_STD_MSG_API_URL,
             qs: { access_token: pageAccessToken },
@@ -641,11 +663,22 @@ module.exports.setupFBMessenger = async (app) => {
                 const messageId = body.message_id;
 
                 if (logger.isDebugEnabled()) {
-                    logger.debug("Successfully sent message: ", messageData);
+                    logger.debug("Successfully sent message: ", JSON.stringify(messageData));
+                }
+                if (msgId !== 0) {
+                    messagebusSender(fbMessageStatusReport(msgId, chatbotBusId));
                 }
 
             } else {
-                logger.error(`Failed calling API ${response.statusCode} : ${response.statusMessage} : ${body.error}`);
+                logger.error(`Failed calling API ${response.statusCode} : ${JSON.stringify(response.statusMessage)} : ${JSON.stringify(body)}`);
+                if (msgId !== 0) {
+                    messagebusSender(fbMessageStatusReport(
+                        msgId,
+                        chatbotBusId,
+                        "sending msg to facebook",
+                        STATUS.SEND_TO_MSGR_API_FAILED
+                    ));
+                }
             }
         });
     }
@@ -659,11 +692,11 @@ module.exports.setupFBMessenger = async (app) => {
             }, (error, response, body) => {
                 if (!error && response.statusCode == 200) {
                     if (logger.isDebugEnabled()) {
-                        logger.debug("Successfully got person info: ", response.body);
+                        logger.debug("Successfully got person info: ", JSON.stringify(response.body));
                     }
                     resolve(JSON.parse(response.body));
                 } else {
-                    logger.error(`Failed calling API ${response.statusCode} : ${response.statusMessage} : ${body.error}`);
+                    logger.error(`Failed calling API ${response.statusCode} : ${JSON.stringify(response.statusMessage)} : ${JSON.stringify(body)}`);
                     reject(Error(response.statusMessage + ':' + response.statusCode));
                 }
             });
@@ -671,13 +704,9 @@ module.exports.setupFBMessenger = async (app) => {
     }
 
     /*
-'{
-  "<PROPERTY_NAME>": "<NEW_PROPERTY_VALUE>",
-  "<PROPERTY_NAME>": "<NEW_PROPERTY_VALUE>",
-  ...
-}
+
     */
-    function callAddToMessengerProfileAPI(messageData, pageAccessToken) {
+    function callAddToMessengerProfileAPI(msgId, chatbotBusId, messageData, pageAccessToken) {
         request({
             uri: FACEBOOK_MESSENGER_PROFILE_URL,
             qs: { access_token: pageAccessToken },
@@ -687,24 +716,25 @@ module.exports.setupFBMessenger = async (app) => {
         }, (error, response, body) => {
             if (!error && response.statusCode == 200) {
                 if (logger.isDebugEnabled()) {
-                    logger.debug("Successfully added profile: ", messageData);
+                    logger.debug("Successfully added profile: ", JSON.stringify(messageData));
                 }
+                messagebusSender(fbMessageStatusReport(msgId, chatbotBusId));
             } else {
-                logger.error(`Failed calling API ${response.statusCode} : ${response.statusMessage} : ${body.error}`);
+                logger.error(`Failed calling API ${response.statusCode} : ${JSON.stringify(response.statusMessage)} : ${JSON.stringify(body)}`);
+                messagebusSender(fbMessageStatusReport(
+                    msgId,
+                    chatbotBusId,
+                    "Adding profile failed",
+                    STATUS.ADDING_PROFILE_FAILED
+                ));
             }
         });
     }
 
     /*
-{"fields": [
-    "<PROPERTY_NAME>",
-    "<PROPERTY_NAME>",
-    "<PROPERTY_NAME>",
-    ...
-  ]}
-    */
 
-    function callDeleteMessengerProfileAPI(messageData, pageAccessToken) {
+    */
+    function callDeleteMessengerProfileAPI(msgId, chatbotBusId, messageData, pageAccessToken) {
         request({
             uri: FACEBOOK_MESSENGER_PROFILE_URL,
             qs: { access_token: pageAccessToken },
@@ -714,10 +744,17 @@ module.exports.setupFBMessenger = async (app) => {
         }, (error, response, body) => {
             if (!error && response.statusCode == 200) {
                 if (logger.isDebugEnabled()) {
-                    logger.debug("Successfully deleted profile: ", messageData);
+                    logger.debug("Successfully deleted profile: ", JSON.stringify(messageData));
                 }
+                messagebusSender(fbMessageStatusReport(msgId, chatbotBusId));
             } else {
-                logger.error(`Failed calling API ${response.statusCode} : ${response.statusMessage} : ${body.error}`);
+                logger.error(`Failed calling API ${response.statusCode} : ${JSON.stringify(response.statusMessage)} : ${JSON.stringify(body)}`);
+                messagebusSender(fbMessageStatusReport(
+                    msgId,
+                    chatbotBusId,
+                    "Delete profile failed",
+                    STATUS.DELETE_PROFILE_FAILED
+                ));
             }
         });
     }

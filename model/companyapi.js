@@ -6,7 +6,7 @@ const Schema = mongoose.Schema;
 
 const companyAPI = new Schema({
     companyId: { type: String, required: [true, 'Company Id required'], index: true },
-    chatbotAPIUUID: { type: String, required: [true, 'Chatbot API UUID required'], index: { unique: true } },
+    chatbotAPIUUId: { type: String, required: [true, 'Chatbot API UUID required'], index: { unique: true } },
     chatbotBusId: { type: String, required: [true, 'Chatbot Bus Id required'], index: true },
     pageAccessToken: { type: String, required: [true, 'Facebook page access code required'] },
     appSecret: { type: String, required: [true, 'Facebook App secret required'] }
@@ -24,8 +24,8 @@ module.exports = (cnx) => {
                     }
                 });
         },
-        deleteByAPIUUId: (chatbotAPIUUID) => {
-            CompanyAPIObj.remove({ chatbotAPIUUID }).exec((err, obj) => {
+        deleteByAPIUUId: (chatbotAPIUUId) => {
+            CompanyAPIObj.remove({ chatbotAPIUUId }).exec((err, obj) => {
                 if (err) {
                     logger.error("Error with deleting by API UUID", err);
                 }
@@ -35,8 +35,8 @@ module.exports = (cnx) => {
             const query = CompanyAPIObj.findOne({ companyId });
             return find(query, "company Id")
         },
-        findByAPIUUId: (chatbotAPIUUID) => {
-            const query = CompanyAPIObj.findOne({ chatbotAPIUUID });
+        findByAPIUUId: (chatbotAPIUUId) => {
+            const query = CompanyAPIObj.findOne({ chatbotAPIUUId });
             return find(query, "chatbot API Id")
         },
     }
