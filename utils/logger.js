@@ -1,8 +1,10 @@
 'use strict';
 
-const log4js = require('log4js');
-const log4js_extend = require("log4js-extend");
+const config = require('config'),
+    log4js = require('log4js'),
+    log4js_extend = require("log4js-extend");
 let configured = false;
+
 
 module.exports = (fileName, logName) => {
     if (!configured) {
@@ -13,13 +15,13 @@ module.exports = (fileName, logName) => {
                 },
                 logstash: {
                     type: 'logstashTCP',
-                    host: '127.0.0.1',
-                    port: '5960',
+                    host: config.get('logstashHost'),
+                    port: config.get('logstashPort'),
                     appName: "svr-fbchatbot-fwd"
                 },
                 file: {
                     type: 'file',
-                    filename: './logs/debug.log',
+                    filename: config.get('localLogFilePath'),
                     maxLogSize: 10485760,
                     backups: 5,
                     compress: true

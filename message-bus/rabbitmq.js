@@ -41,9 +41,9 @@ module.exports = async (config) => {
     };
 
     /*
+    TODO need some kind of reconnect strategy
     setTimeout(() => {
-      server.close();
-      server.listen(PORT, HOST);
+       reconnect();
     }, 1000);
 
     */

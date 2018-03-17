@@ -18,5 +18,8 @@
     "mongoDBConfigDBName": "chatbot",
     "facebookStdMessageAPIURL": "https://graph.facebook.com/v2.6/me/messages",
     "facebookPersonInfoURL": "https://graph.facebook.com/v2.6/",
-    "facebookMessengerProfile" : "https://graph.facebook.com/v2.6/me/messenger_profile"
+    "facebookMessengerProfile" : "https://graph.facebook.com/v2.6/me/messenger_profile",
+    "logstashPort": 5960,
+    "logstashHost": "127.0.0.1",
+    "localLogFilePath": "./logs/log.log"
 }
