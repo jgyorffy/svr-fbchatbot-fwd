@@ -28,7 +28,7 @@ module.exports = (fileName, logName) => {
                 }
             },
             categories: {
-                default: { appenders: ['console', 'logstash', 'file'], level: 'debug' }
+                default: { appenders: ['console', 'logstash', 'file'], level: config.get('loglevel') }
             }
         });
 
@@ -39,6 +39,6 @@ module.exports = (fileName, logName) => {
         configured = true;
     }
     const logger = log4js.getLogger(logName);
-    logger.level = 'debug';
+    logger.level = config.get('loglevel');
     return logger;
 }

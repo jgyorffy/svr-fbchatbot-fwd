@@ -21,5 +21,6 @@
     "facebookMessengerProfile" : "https://graph.facebook.com/v2.6/me/messenger_profile",
     "logstashPort": 5960,
     "logstashHost": "127.0.0.1",
-    "localLogFilePath": "./logs/log.log"
+    "localLogFilePath": "./logs/log.log",
+    "loglevel": "debug"
 }
