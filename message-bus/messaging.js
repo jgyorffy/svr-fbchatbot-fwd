@@ -55,9 +55,9 @@ module.exports = async (fbSvrOnMessage) => {
         }
     }
 
-    return (message) => {
+    return (message, rtKey) => {
         if (busIdToConnectedBusMap[message.chatbotBusId]) {
-            busIdToConnectedBusMap[message.chatbotBusId].send(message);
+            busIdToConnectedBusMap[message.chatbotBusId].send(message, rtKey);
             if (logger.isDebugEnabled()) {
                 logger.debug(`Sent fb msg to queue:\n ${JSON.stringify(message)}`);
             }

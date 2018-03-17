@@ -1,10 +1,5 @@
 {
-    "appSecret": "6140495b9add8466ad1e802b8f0f467f",
-    "pageAccessToken": "EAABcynYQzfQBAAX6Y53mOuWgIGGnb0v02XjMjCCq827eRQ1G7lYghLPCgOD5MhZAOjSSfli22GabZCh4j5YTOqKZAgyO1MTiQ6b0thB9XgQFrPRQXFbgt0LjeXmXWYTDqZCvUt3takQa0EJWmMe5lZC8XSZCLV2NvOlO8YhzJwGZACFUpDF9XIdtDsF7FcnTScZD",
     "serverURL": "https://datapark.ddns.net:8443",
-    "dfProjectId": "date-72100",
-    "dfAccessToken": "f0f89376b69a47d199645f70a0802a0a",
-    "dfDevAccessToken": "b41b2276ca2747e4a7035c0c1d748758",
     "systemSSLKey": "keys/datapark_ddns_net.key.pem",
     "systemSSLCert": "keys/datapark_ddns_net.pem",
     "restSSLKey": "keys/datapark_ddns_net.key.pem",

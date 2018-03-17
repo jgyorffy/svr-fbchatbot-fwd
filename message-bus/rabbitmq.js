@@ -66,12 +66,12 @@ module.exports = async (config) => {
     }
 
     return {
-        send: (msg) => {
+        send: (msg, msgRoutingKey = routingKey) => {
             if (!connected) {
                 return;
             }
             try {
-                channel.publish(exchange, routingKey, Buffer.from(JSON.stringify(msg)), {
+                channel.publish(exchange, msgRoutingKey, Buffer.from(JSON.stringify(msg)), {
                     contentType: 'application/json',
                 });
             } catch (err) {

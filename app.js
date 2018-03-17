@@ -10,7 +10,6 @@ const
   logger = require('./utils/logger')(__dirname, "app");
 
 const app = express();
-app.use(express.static('public'));
 fbMsgr.setupFBMessenger(app);
 
 const options = {

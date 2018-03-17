@@ -28,6 +28,7 @@ const SERVER_URL = config.get('serverURL');
 const FACEBOOK_STD_MSG_API_URL = config.get('facebookStdMessageAPIURL');
 const FACEBOOK_PERSON_INFO_API_URL = config.get('facebookPersonInfoURL');
 const FACEBOOK_MESSENGER_PROFILE_URL = config.get('facebookMessengerProfile');
+const STATUS_RT_KEY = Symbol.keyFor(MSG_TYPES.FB_MSG_STATUS_RSP);
 
 module.exports.setupFBMessenger = async (app) => {
     const messagebusSender = await messagebus;
@@ -64,7 +65,7 @@ module.exports.setupFBMessenger = async (app) => {
                 apiConfig.chatbotBusId,
                 "Could not find chatbot API UUId: " + msg.chatbotAPIUUId,
                 STATUS.NOT_VALID_APIUUID
-            ));
+            ), STATUS_RT_KEY);
             return;
         }
         try {
@@ -90,7 +91,7 @@ module.exports.setupFBMessenger = async (app) => {
                     apiConfig.chatbotBusId,
                     "Unknown message type received: " + msg.msgType,
                     STATUS.UNKNOWN_MSG_TYPE
-                ));
+                ), STATUS_RT_KEY);
             }
         } catch (Err) {
             logger.error(`Unknown message error received:\n ${JSON.stringify(Err)}`);
@@ -99,7 +100,7 @@ module.exports.setupFBMessenger = async (app) => {
                 apiConfig.chatbotBusId,
                 "Unknown message error",
                 STATUS.UNKNOWN_MSG_TYPE
-            ));
+            ), STATUS_RT_KEY);
         }
 
     }
@@ -666,7 +667,7 @@ module.exports.setupFBMessenger = async (app) => {
                     logger.debug("Successfully sent message: ", JSON.stringify(messageData));
                 }
                 if (msgId !== 0) {
-                    messagebusSender(fbMessageStatusReport(msgId, chatbotBusId));
+                    messagebusSender(fbMessageStatusReport(msgId, chatbotBusId), STATUS_RT_KEY);
                 }
 
             } else {
@@ -677,7 +678,7 @@ module.exports.setupFBMessenger = async (app) => {
                         chatbotBusId,
                         "sending msg to facebook",
                         STATUS.SEND_TO_MSGR_API_FAILED
-                    ));
+                    ), STATUS_RT_KEY);
                 }
             }
         });
@@ -718,7 +719,7 @@ module.exports.setupFBMessenger = async (app) => {
                 if (logger.isDebugEnabled()) {
                     logger.debug("Successfully added profile: ", JSON.stringify(messageData));
                 }
-                messagebusSender(fbMessageStatusReport(msgId, chatbotBusId));
+                messagebusSender(fbMessageStatusReport(msgId, chatbotBusId), STATUS_RT_KEY);
             } else {
                 logger.error(`Failed calling API ${response.statusCode} : ${JSON.stringify(response.statusMessage)} : ${JSON.stringify(body)}`);
                 messagebusSender(fbMessageStatusReport(
@@ -726,7 +727,7 @@ module.exports.setupFBMessenger = async (app) => {
                     chatbotBusId,
                     "Adding profile failed",
                     STATUS.ADDING_PROFILE_FAILED
-                ));
+                ), STATUS_RT_KEY);
             }
         });
     }
@@ -746,7 +747,7 @@ module.exports.setupFBMessenger = async (app) => {
                 if (logger.isDebugEnabled()) {
                     logger.debug("Successfully deleted profile: ", JSON.stringify(messageData));
                 }
-                messagebusSender(fbMessageStatusReport(msgId, chatbotBusId));
+                messagebusSender(fbMessageStatusReport(msgId, chatbotBusId), STATUS_RT_KEY);
             } else {
                 logger.error(`Failed calling API ${response.statusCode} : ${JSON.stringify(response.statusMessage)} : ${JSON.stringify(body)}`);
                 messagebusSender(fbMessageStatusReport(
@@ -754,7 +755,7 @@ module.exports.setupFBMessenger = async (app) => {
                     chatbotBusId,
                     "Delete profile failed",
                     STATUS.DELETE_PROFILE_FAILED
-                ));
+                ), STATUS_RT_KEY);
             }
         });
     }
