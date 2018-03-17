@@ -14,7 +14,6 @@ const
     messagebus = require('../message-bus/messaging')((msg) => {
         onMessageFnc(msg);
     }),
-    database = require('../model/database'),
     MSG_TYPES = require('../message-bus/message-types').msgTypes,
     fbNewMsg = require('../message-bus/message-types').fbNewMsg,
     fbDelConfirmation = require('../message-bus/message-types').fbDelConfirmation,
@@ -32,6 +31,7 @@ const STATUS_RT_KEY = Symbol.keyFor(MSG_TYPES.FB_MSG_STATUS_RSP);
 
 module.exports.setupFBMessenger = async (app) => {
     const messagebusSender = await messagebus;
+    const database = await require('../model/database');
     //  database.companyAPI.updateByCompanyID({companyId:'1', chatbotAPIUUId:'4LSN2MYVWVUM2QHOX73Q', chatbotBusId:'2', pageAccessToken:'EAABcynYQzfQBAAX6Y53mOuWgIGGnb0v02XjMjCCq827eRQ1G7lYghLPCgOD5MhZAOjSSfli22GabZCh4j5YTOqKZAgyO1MTiQ6b0thB9XgQFrPRQXFbgt0LjeXmXWYTDqZCvUt3takQa0EJWmMe5lZC8XSZCLV2NvOlO8YhzJwGZACFUpDF9XIdtDsF7FcnTScZD', appSecret:'6140495b9add8466ad1e802b8f0f467f'});
 
     /*

@@ -10,11 +10,10 @@ const rabbitmqConfig = require('./rabbitmq')({
     queue: config.get('rabbitMQConfigQueueName'),
     exchange: config.get('rabbitMQChatbotExchange')
 });
-const database = require('../model/database');
 const busIdToConnectedBusMap = {};
 
 module.exports = async (fbSvrOnMessage) => {
-    await database.init();
+    const database = await require('../model/database');
 
     const configQueue = await rabbitmqConfig;
 
