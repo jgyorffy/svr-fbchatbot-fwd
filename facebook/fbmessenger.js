@@ -1,43 +1,128 @@
 'use strict';
 
-let onMessageFnc = null;
-
-const
-    bodyParser = require('body-parser'),
-    logger = require('../utils/logger')(__dirname, "FB msg handler"),
-    config = require('config'),
-    crypto = require('crypto'),
-    express = require('express'),
-    https = require('https'),
-    request = require('request'),
-    fs = require("fs"),
-    messagebus = require('../message-bus/messaging')((msg) => {
-        onMessageFnc(msg);
+const config = require('config'),
+    logger = require('chatbot-common').getLogger(__filename, "FB msg handler"),
+    messageBus = require('chatbot-common').messageBus({
+        host: config.get('messageBusHost'),
+        port: config.get('messageBusPort'),
+        username: config.get('messageBusUserName'),
+        queue: config.get('messageBusFBCommandQueue'),
+        exchange: config.get('messageBusChatbotExchange')
     }),
-    MSG_TYPES = require('../message-bus/message-types').msgTypes,
-    fbNewMsg = require('../message-bus/message-types').fbNewMsg,
-    fbDelConfirmation = require('../message-bus/message-types').fbDelConfirmation,
-    fbPostback = require('../message-bus/message-types').fbPostback,
-    fbMessageRead = require('../message-bus/message-types').fbMessageRead,
-    fbMessageOptIn = require('../message-bus/message-types').fbMessageOptIn,
-    fbMessageStatusReport = require('../message-bus/message-types').fbMessageStatusReport,
-    STATUS = require('../message-bus/message-types').status;
+    model = require('chatbot-common').model,
+    FacebookStrategy = require('passport-facebook').Strategy,
+    passport = require('passport'),
+    bodyParser = require('body-parser'),
+    crypto = require('crypto'),
+    request = require('request'),
+    MSG_TYPES = require('chatbot-common').msgTypes,
+    fbNewMsg = require('chatbot-common').facebookMessages.fbNewMsg,
+    fbDelConfirmation = require('chatbot-common').facebookMessages.fbDelConfirmation,
+    fbPostback = require('chatbot-common').facebookMessages.fbPostback,
+    fbMessageRead = require('chatbot-common').facebookMessages.fbMessageRead,
+    fbMessageOptIn = require('chatbot-common').facebookMessages.fbMessageOptIn,
+    fbMessageStatusReport = require('chatbot-common').commonMessages.messageStatusReport,
+    STATUS = require('chatbot-common').msgStatus;
 
-const SERVER_URL = config.get('serverURL');
+
+const BUS_ID = config.get('busId');
+const IMAGE_BASE_URL = config.get('imageBaseURL');
 const FACEBOOK_STD_MSG_API_URL = config.get('facebookStdMessageAPIURL');
 const FACEBOOK_PERSON_INFO_API_URL = config.get('facebookPersonInfoURL');
 const FACEBOOK_MESSENGER_PROFILE_URL = config.get('facebookMessengerProfile');
 const STATUS_RT_KEY = Symbol.keyFor(MSG_TYPES.FB_MSG_STATUS_RSP);
 
-module.exports.setupFBMessenger = async (app) => {
-    const messagebusSender = await messagebus;
-    const database = await require('../model/database');
-    //  database.companyAPI.updateByCompanyID({companyId:'1', chatbotAPIUUId:'4LSN2MYVWVUM2QHOX73Q', chatbotBusId:'2', pageAccessToken:'EAABcynYQzfQBAAX6Y53mOuWgIGGnb0v02XjMjCCq827eRQ1G7lYghLPCgOD5MhZAOjSSfli22GabZCh4j5YTOqKZAgyO1MTiQ6b0thB9XgQFrPRQXFbgt0LjeXmXWYTDqZCvUt3takQa0EJWmMe5lZC8XSZCLV2NvOlO8YhzJwGZACFUpDF9XIdtDsF7FcnTScZD', appSecret:'6140495b9add8466ad1e802b8f0f467f'});
 
+passport.serializeUser((user, done) => {
+    done(null, user);
+});
+
+passport.deserializeUser((obj, done) => {
+    done(null, obj);
+});
+
+passport.use(new FacebookStrategy({
+    clientID: '155780428576551',
+    clientSecret: '0b06770266bd8aef16de010a5769a5ec',
+    callbackURL: config.get('facebookCallbackURL'),
+    passReqToCallback: true
+},
+    async (req, accessToken, refreshToken, profile, done) => {
+        if (logger.isDebugEnabled()) {
+            logger.debug("Successfully got user login: ", JSON.stringify(profile));
+        }
+        const pageInfo = await getPages(accessToken);
+        
+        if (logger.isDebugEnabled()) {
+            logger.debug("Successfully got page info: ", JSON.stringify(pageInfo));
+        }
+        const ret = subscribeApp(pageInfo.data[0].access_token, pageInfo.data[0].id);
+
+        return done(null, profile);
+
+    }
+));
+
+async function subscribeApp(pageAccessToken, pageId) {
+    return new Promise((resolve, reject) => {
+        request({
+            uri: `https://graph.facebook.com/v2.5/${pageId}/subscribed_apps`,
+            qs: { access_token: pageAccessToken },
+            method: 'POST'
+
+        }, (error, response, body) => {
+            if (!error && response.statusCode == 200) {
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Successfully added profile: ", JSON.stringify(messageData));
+                }
+                resolve(true);
+            } else {
+                logger.error(`Failed calling API ${response.statusCode} : ${JSON.stringify(response.statusMessage)} : ${JSON.stringify(body)}`);
+                reject(Error(response.statusMessage + ':' + response.statusCode));
+            }
+        });
+    });
+}
+
+async function getPages(accessToken) {
+    return new Promise((resolve, reject) => {
+        request({
+            uri: 'https://graph.facebook.com/v2.5/me/accounts',
+            qs: { access_token: accessToken },
+            method: 'GET'
+        }, (error, response, body) => {
+            if (!error && response.statusCode == 200) {
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Successfully got page info: ", JSON.stringify(response.body));
+                }
+                resolve(JSON.parse(response.body));
+            } else {
+                logger.error(`Failed calling API ${response.statusCode} : ${JSON.stringify(response.statusMessage)} : ${JSON.stringify(body)}`);
+                reject(Error(response.statusMessage + ':' + response.statusCode));
+            }
+        });
+    });
+}
+
+module.exports.setupFBMessenger = async (app) => {
+    const bus = await messageBus;
+    const messagebusSender = bus.send;
+
+    app.use(passport.initialize());
+    app.get('/auth/facebook/company/:apiuuid', (req, res, next) => {
+        passport.authenticate(
+            'facebook', { scope: 'manage_pages,pages_show_list' }
+        )(req, res, next);
+    });
+    app.get('/auth/facebook/callback',
+        passport.authenticate('facebook', { successRedirect: '/', failureRedirect: '/login' }),
+        (req, res) => {
+            res.redirect('/');
+        });
     /*
         These are all the incoming messages that can be sent to Facebook Messenger.
     */
-    onMessageFnc = async (msg) => {
+    bus.listen(async (msg) => {
         if (logger.isDebugEnabled()) {
             logger.debug(`Received message for facebook\n ${JSON.stringify(msg)}`);
         }
@@ -57,53 +142,52 @@ module.exports.setupFBMessenger = async (app) => {
             return;
         }
 
-        const apiConfig = await database.companyAPI.findByAPIUUId(msg.chatbotAPIUUId);
-        if (!apiConfig) {
-            logger.error("Could not find chatbot API UUId: ", msg.chatbotAPIUUId);
-            messagebusSender(fbMessageStatusReport(
-                msg.msgId,
-                apiConfig.chatbotBusId,
-                "Could not find chatbot API UUId: " + msg.chatbotAPIUUId,
-                STATUS.NOT_VALID_APIUUID
-            ), STATUS_RT_KEY);
+        if (!msg.msgType) {
+            logger.error("Message type was empty");
             return;
         }
+
+        const apiConfig = await model.tblChatbotAPI.findByAPIUUId(msg.chatbotAPIUUId);
+        if (!apiConfig) {
+            logger.error("Could not find chatbot API UUId: ", msg.chatbotAPIUUId);
+            return;
+        }
+        const routingKey = apiConfig.routingKey ? apiConfig.routingKey : STATUS_RT_KEY;
         try {
             //sendTypingOff(msg.senderId, apiConfig.pageAccessToken);
             if (msg.msgType === Symbol.keyFor(MSG_TYPES.FB_MSG_REPLY_PLAIN_TXT)) {
-                sendTextMessage(msg.msgId, apiConfig.chatbotBusId, msg.senderId, apiConfig.pageAccessToken, msg.messageText, msg.msgId);
+                sendTextMessage(msg.msgId, BUS_ID, msg.senderId, apiConfig.pageAccessToken, msg.messageText, msg.msgId);
             } else if (msg.msgType === Symbol.keyFor(MSG_TYPES.FB_MSG_MEDIA)) {
-                sendMediaMessage(msg.msgId, apiConfig.chatbotBusId, msg.senderId, apiConfig.pageAccessToken, msg.type, msg.assetPath);
+                sendMediaMessage(msg.msgId, BUS_ID, msg.senderId, apiConfig.pageAccessToken, msg.type, msg.assetPath);
             } else if (msg.msgType === Symbol.keyFor(MSG_TYPES.FB_MSG_BUTTON)) {
-                sendButtonMessage(msg.msgId, apiConfig.chatbotBusId, msg.senderId, apiConfig.pageAccessToken, msg.headerText, msg.buttons)
+                sendButtonMessage(msg.msgId, BUS_ID, msg.senderId, apiConfig.pageAccessToken, msg.headerText, msg.buttons)
             } else if (msg.msgType === Symbol.keyFor(MSG_TYPES.FB_MSG_GENERIC)) {
-                sendGenericMessage(msg.msgId, apiConfig.chatbotBusId, msg.senderId, apiConfig.pageAccessToken, msg.elements);
+                sendGenericMessage(msg.msgId, BUS_ID, msg.senderId, apiConfig.pageAccessToken, msg.elements);
             } else if (msg.msgType === Symbol.keyFor(MSG_TYPES.FB_MSG_QUICK_REPLY)) {
-                sendQuickReply(msg.msgId, apiConfig.chatbotBusId, msg.senderId, apiConfig.pageAccessToken, msg.question, msg.replies);
+                sendQuickReply(msg.msgId, BUS_ID, msg.senderId, apiConfig.pageAccessToken, msg.question, msg.replies);
             } else if (msg.msgType === Symbol.keyFor(MSG_TYPES.FB_MSG_ADD_PROFILE)) {
-                callAddToMessengerProfileAPI(msg.msgId, apiConfig.chatbotBusId, msg.profile, apiConfig.pageAccessToken);
+                callAddToMessengerProfileAPI(msg.msgId, BUS_ID, msg.profile, apiConfig.pageAccessToken);
             } else if (msg.msgType === Symbol.keyFor(MSG_TYPES.FB_MSG_DEL_PROFILE)) {
-                callDeleteMessengerProfileAPI(msg.msgId, apiConfig.chatbotBusId, msg.profile, apiConfig.pageAccessToken);
+                callDeleteMessengerProfileAPI(msg.msgId, BUS_ID, msg.profile, apiConfig.pageAccessToken);
             } else {
-                logger.error(`Unknown message type received:\n ${JSON.stringify(msg)}`);
+                logger.error('Unknown message type received:', msg.msgType);
                 messagebusSender(fbMessageStatusReport(
                     msg.msgId,
-                    apiConfig.chatbotBusId,
+                    BUS_ID,
                     "Unknown message type received: " + msg.msgType,
                     STATUS.UNKNOWN_MSG_TYPE
-                ), STATUS_RT_KEY);
+                ), routingKey);
             }
-        } catch (Err) {
-            logger.error(`Unknown message error received:\n ${JSON.stringify(Err)}`);
+        } catch (err) {
+            logger.error('Unknown message error received:', err);
             messagebusSender(fbMessageStatusReport(
                 msg.msgId,
-                apiConfig.chatbotBusId,
+                BUS_ID,
                 "Unknown message error",
                 STATUS.UNKNOWN_MSG_TYPE
-            ), STATUS_RT_KEY);
+            ), routingKey);
         }
-
-    }
+    });
 
     app.use(bodyParser.json({ verify: verifyRequestSignature }));
 
@@ -112,15 +196,16 @@ module.exports.setupFBMessenger = async (app) => {
      * setup is the same token used here.
      *
      */
-    app.get('/:company/webhook', (req, res) => {
-        if (req.query['hub.mode'] === 'subscribe') {
-            database.companyAPI.findByAPIUUId(req.query['hub.verify_token']).then((obj) => {
+    app.get('/:apiuuid/webhook', (req, res) => {
+        if ((req.query['hub.mode'] === 'subscribe') && (req.params.apiuuid === req.query['hub.verify_token'])) {
+            model.tblChatbotAPI.findByAPIUUId(req.query['hub.verify_token']).then((obj) => {
                 if (obj) {
                     res.status(200).send(req.query['hub.challenge']);
                 } else {
                     res.sendStatus(403);
                 }
             }).catch((err) => {
+                logger.error('Webhook validate token error:', err);
                 res.sendStatus(403);
             });
         } else {
@@ -143,9 +228,9 @@ module.exports.setupFBMessenger = async (app) => {
                 logger.debug(`Received message from facebook messanger\n ${JSON.stringify(data)}`);
             }
 
-            const apiConfig = await database.companyAPI.findByAPIUUId(req.params.apiuuid);
+            const apiConfig = await model.tblChatbotAPI.findByAPIUUId(req.params.apiuuid);
             if (!apiConfig) {
-                logger.error("Company API UUID not in the database:", req.params.apiuuid);
+                logger.error("Chatbot API UUID not in the database:", req.params.apiuuid);
                 res.sendStatus(200);
                 return;
             }
@@ -188,29 +273,6 @@ module.exports.setupFBMessenger = async (app) => {
     });
 
     /*
-     * This path is used for account linking. The account linking call-to-action
-     * (sendAccountLinking) is pointed to this URL.
-     *
-     */
-    app.get('/authorize', function (req, res) {
-        var accountLinkingToken = req.query.account_linking_token;
-        var redirectURI = req.query.redirect_uri;
-
-        // Authorization Code should be generated per user by the developer. This will
-        // be passed to the Account Linking callback.
-        var authCode = "1234567890";
-
-        // Redirect users to this URI on successful login
-        var redirectURISuccess = redirectURI + "&authorization_code=" + authCode;
-
-        res.render('authorize', {
-            accountLinkingToken: accountLinkingToken,
-            redirectURI: redirectURI,
-            redirectURISuccess: redirectURISuccess
-        });
-    });
-
-    /*
      * Verify that the callback came from Facebook. Using the App Secret from
      * the App Dashboard, we can verify the signature that is sent with each
      * callback in the x-hub-signature field, located in the header.
@@ -230,7 +292,7 @@ module.exports.setupFBMessenger = async (app) => {
             const elements = signature.split('=');
             const method = elements[0];
             const signatureHash = elements[1];
-            const apiConfig = await database.companyAPI.findByAPIUUId(chatbotAPIUUId);
+            const apiConfig = await model.tblChatbotAPI.findByAPIUUId(chatbotAPIUUId);
             if (apiConfig) {
                 const expectedHash = crypto.createHmac('sha1', apiConfig.appSecret)
                     .update(buf)
@@ -273,14 +335,14 @@ module.exports.setupFBMessenger = async (app) => {
         }
 
         messagebusSender(fbMessageOptIn(
-            apiConfig.chatbotBusId,
+            BUS_ID,
             apiConfig.chatbotAPIUUId,
             pageId,
             senderId,
             recipientId,
             timeOfEvent,
             optinRef
-        ));
+        ), apiConfig.routingKey ? apiConfig.routingKey : STATUS_RT_KEY);
     }
 
     /*
@@ -325,7 +387,7 @@ module.exports.setupFBMessenger = async (app) => {
 
         const person = await callGetPersonInfo(senderId, apiConfig.pageAccessToken);
         messagebusSender(fbNewMsg(
-            apiConfig.chatbotBusId,
+            BUS_ID,
             apiConfig.chatbotAPIUUId,
             pageID,
             senderId,
@@ -339,7 +401,7 @@ module.exports.setupFBMessenger = async (app) => {
             person.first_name,
             person.last_name,
             person.gender
-        ));
+        ), apiConfig.routingKey ? apiConfig.routingKey : STATUS_RT_KEY);
         sendReadReceipt(senderId, apiConfig.pageAccessToken);
         sendTypingOn(senderId, apiConfig.pageAccessToken);
     }
@@ -366,7 +428,7 @@ module.exports.setupFBMessenger = async (app) => {
                 logger.debug(`Received delivery confirmation for message Id: ${messageId}`);
 
                 messagebusSender(fbDelConfirmation(
-                    apiConfig.chatbotBusId,
+                    BUS_ID,
                     apiConfig.chatbotAPIUUId,
                     pageId,
                     senderId,
@@ -375,7 +437,7 @@ module.exports.setupFBMessenger = async (app) => {
                     messageId,
                     watermark,
                     sequenceNumber
-                ));
+                ), apiConfig.routingKey ? apiConfig.routingKey : STATUS_RT_KEY);
             });
         }
     }
@@ -401,14 +463,14 @@ module.exports.setupFBMessenger = async (app) => {
         }
 
         messagebusSender(fbPostback(
-            apiConfig.chatbotBusId,
+            BUS_ID,
             apiConfig.chatbotAPIUUId,
             pageId,
             senderId,
             recipientId,
             timeOfPostback,
             payload
-        ));
+        ), apiConfig.routingKey ? apiConfig.routingKey : STATUS_RT_KEY);
 
         sendReadReceipt(senderId, apiConfig.pageAccessToken);
         sendTypingOn(senderId, apiConfig.pageAccessToken);
@@ -433,7 +495,7 @@ module.exports.setupFBMessenger = async (app) => {
         }
 
         messagebusSender(fbMessageRead(
-            apiConfig.chatbotBusId,
+            BUS_ID,
             apiConfig.chatbotAPIUUId,
             pageId,
             senderId,
@@ -441,7 +503,7 @@ module.exports.setupFBMessenger = async (app) => {
             timeOfEvent,
             watermark,
             sequenceNumber
-        ));
+        ), apiConfig.routingKey ? apiConfig.routingKey : STATUS_RT_KEY);
     }
 
     /*
@@ -457,7 +519,7 @@ module.exports.setupFBMessenger = async (app) => {
                 attachment: {
                     type,
                     payload: {
-                        url: SERVER_URL + '/' + assetPath
+                        url: IMAGE_BASE_URL + '/' + assetPath
                     }
                 }
             }

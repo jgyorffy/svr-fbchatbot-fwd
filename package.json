@@ -13,18 +13,14 @@
     "url": "git@github.com:jgyorffy/svr-fbchatbot-fwd.git"
   },
   "author": "DATAPARK",
-  "license": "ISC",
+  "license": "UNLICENSED",
   "dependencies": {
-    "amqplib": "^0.5.2",
     "body-parser": "^1.15.0",
-    "bson-ext": "^2.0.0",
+    "chatbot-common": "file:../chatbot-common",
     "config": "^1.20.4",
-    "ejs": "^2.4.2",
-    "express": "^4.13.4",
-    "log4js": "^2.5.3",
-    "log4js-extend": "^0.2.1",
-    "mongodb": "^3.0.4",
-    "mongoose": "^5.0.9",
+    "express-session": "^1.15.6",
+    "passport": "^0.4.0",
+    "passport-facebook": "^2.1.1",
     "request": "^2.72.0"
   }
 }
