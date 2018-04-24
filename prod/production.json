@@ -4,7 +4,6 @@
     "restSSLKey": "/run/secrets/keys/www_datapark_us_com_key.pem",
     "restSSLCert": "/run/secrets/keys/www_datapark_us_com.pem",
     "restSSLCA": "/run/secrets/keys/www_datapark_us_com_bundle.crt",
-    "dfGoogleCloudJSONKey": "/run/secrets/keys/google-cloud.json",
     "maxIncomingCnx": 100,
     "loglevel": "info",
     "removeSecrets": true,
