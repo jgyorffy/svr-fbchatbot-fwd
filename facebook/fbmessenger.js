@@ -52,7 +52,7 @@ passport.use(new FacebookStrategy({
             logger.debug("Successfully got user login: ", JSON.stringify(profile));
         }
         const pageInfo = await getPages(accessToken);
-        
+
         if (logger.isDebugEnabled()) {
             logger.debug("Successfully got page info: ", JSON.stringify(pageInfo));
         }
@@ -175,7 +175,8 @@ module.exports.setupFBMessenger = async (app) => {
                     msg.msgId,
                     BUS_ID,
                     "Unknown message type received: " + msg.msgType,
-                    STATUS.UNKNOWN_MSG_TYPE
+                    STATUS.UNKNOWN_MSG_TYPE,
+                    msg.chatbotAPIUUId
                 ), routingKey);
             }
         } catch (err) {
@@ -184,7 +185,8 @@ module.exports.setupFBMessenger = async (app) => {
                 msg.msgId,
                 BUS_ID,
                 "Unknown message error",
-                STATUS.UNKNOWN_MSG_TYPE
+                STATUS.UNKNOWN_MSG_TYPE,
+                msg.chatbotAPIUUId
             ), routingKey);
         }
     });
@@ -398,9 +400,7 @@ module.exports.setupFBMessenger = async (app) => {
             chatSessionData,
             messageText,
             choiceOptions,
-            person.first_name,
-            person.last_name,
-            person.gender
+            person
         ), apiConfig.routingKey ? apiConfig.routingKey : STATUS_RT_KEY);
         sendReadReceipt(senderId, apiConfig.pageAccessToken);
         sendTypingOn(senderId, apiConfig.pageAccessToken);
@@ -450,7 +450,7 @@ module.exports.setupFBMessenger = async (app) => {
      * https://developers.facebook.com/docs/messenger-platform/webhook-reference/postback-received
      *
      */
-    function receivedPostback(apiConfig, pageId, timeOfEvent, event) {
+    async function receivedPostback(apiConfig, pageId, timeOfEvent, event) {
         const senderId = event.sender.id;
         const recipientId = event.recipient.id;
         const timeOfPostback = event.timestamp;
@@ -462,6 +462,8 @@ module.exports.setupFBMessenger = async (app) => {
             logger.debug(`Received postback message from: ${JSON.stringify(event)}`);
         }
 
+        const person = await callGetPersonInfo(senderId, apiConfig.pageAccessToken);        
+
         messagebusSender(fbPostback(
             BUS_ID,
             apiConfig.chatbotAPIUUId,
@@ -469,7 +471,8 @@ module.exports.setupFBMessenger = async (app) => {
             senderId,
             recipientId,
             timeOfPostback,
-            payload
+            payload,
+            person
         ), apiConfig.routingKey ? apiConfig.routingKey : STATUS_RT_KEY);
 
         sendReadReceipt(senderId, apiConfig.pageAccessToken);
@@ -750,7 +753,7 @@ module.exports.setupFBMessenger = async (app) => {
         return new Promise((resolve, reject) => {
             request({
                 uri: FACEBOOK_PERSON_INFO_API_URL + senderId,
-                qs: { fields: 'first_name,last_name,gender', access_token: pageAccessToken },
+                qs: { fields: 'first_name,last_name,gender,timezone,locale', access_token: pageAccessToken },
                 method: 'GET'
             }, (error, response, body) => {
                 if (!error && response.statusCode == 200) {
